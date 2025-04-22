@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Career Counselor Skill Bridge</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); }
+        .modal-content { background: white; margin: 15% auto; padding: 20px; width: 80%; max-width: 500px; border-radius: 8px; }
+        .spinner { display: none; border: 4px solid #f3f3f3; border-top: 4px solid #3498db; border-radius: 50%; width: 24px; height: 24px; animation: spin 1s linear infinite; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+</head>
+<body class="bg-gray-100 text-gray-800 font-sans">
+    <div class="container mx-auto p-6 max-w-4xl">
+        <h1 class="text-3xl font-bold text-blue-800 mb-4">Career Counselor Skill Bridge</h1>
+        <p class="text-gray-600 mb-6">Upload your resume and specify your dream role to get personalized job recommendations, skill-building advice, and more!</p>
+
+        <!-- Form -->
+        <form method="post" action="/upload" enctype="multipart/form-data" id="uploadForm" class="bg-white p-6 rounded-lg shadow-md mb-6">
+            <div class="mb-4">
+                <label for="resume" class="block text-sm font-medium text-gray-700">Upload Resume (PDF or DOCX)</label>
+                <input type="file" id="resume" name="resume" accept=".pdf,.docx" required class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
+            </div>
+            <div class="mb-4">
+                <label for="dream_role" class="block text-sm font-medium text-gray-700">Dream Role or Company (Optional)</label>
+                <input type="text" id="dream_role" name="dream_role" placeholder="e.g., Data Scientist at Google" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
+            </div>
+            <button type="submit" id="submitBtn" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                Analyze Resume <span id="spinner" class="spinner inline-block ml-2"></span>
+            </button>
+        </form>
+
+        <!-- Error Message -->
+        {% if error %}
+            <div id="errorAlert" class="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-6 rounded" role="alert">
+                <p><strong>Error:</strong> {{ error }}</p>
+                <button onclick="document.getElementById('errorAlert').style.display='none'" class="text-red-700 underline">Dismiss</button>
+            </div>
+        {% endif %}
+
+        <!-- Results -->
+        {% if filename %}
+            <div class="bg-white p-6 rounded-lg shadow-md">
+                <h2 class="text-2xl font-semibold text-blue-800 mb-4">Analysis for: {{ filename }}</h2>
+
+                <!-- ATS Score -->
+                <div class="mb-6">
+                    <h3 class="text-xl font-medium text-gray-800">ATS Compatibility Score: {{ ats_score }}/100</h3>
+                    <div class="w-full bg-gray-200 rounded-full h-2.5">
+                        <div class="bg-blue-600 h-2.5 rounded-full" style="width: {{ ats_score }}%"></div>
+                    </div>
+                </div>
+
+                <!-- Skills -->
+                <div class="mb-6">
+                    <button class="w-full text-left bg-blue-100 p-3 rounded-md flex justify-between items-center" onclick="toggleSection('skills')">
+                        <span class="font-medium">Extracted Skills</span>
+                        <span>▼</span>
+                    </button>
+                    <div id="skills" class="mt-2">
+                        <ul class="list-disc pl-5">
+                            {% for skill in skills %}
+                                <li>{{ skill }}</li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Resume Sections -->
+                <div class="mb-6">
+                    <button class="w-full text-left bg-blue-100 p-3 rounded-md flex justify-between items-center" onclick="toggleSection('sections')">
+                        <span class="font-medium">Resume Sections</span>
+                        <span>▼</span>
+                    </button>
+                    <div id="sections" class="mt-2">
+                        {% for section, content in sections.items() %}
+                            {% if content %}
+                                <h4 class="font-medium text-gray-800">{{ section }}</h4>
+                                <ul class="list-disc pl-5 mb-3">
+                                    {% for item in content %}
+                                        <li class="cursor-pointer underline" onclick="showFeedback('{{ section }}: {{ item }}')">{{ item }}</li>
+                                    {% endfor %}
+                                </ul>
+                            {% endif %}
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <!-- Recommendations -->
+                <div class="mb-6">
+                    <button class="w-full text-left bg-blue-100 p-3 rounded-md flex justify-between items-center" onclick="toggleSection('recommendations')">
+                        <span class="font-medium">Recommendations</span>
+                        <span>▼</span>
+                    </button>
+                    <div id="recommendations" class="mt-2">
+                        {% if result.top_jobs %}
+                            <h4 class="font-medium text-gray-800">Top Job Roles</h4>
+                            <ul class="list-disc pl-5 mb-3">
+                                {% for job in result.top_jobs %}
+                                    {% if job is string %}
+                                        <li>{{ job }}</li>
+                                    {% else %}
+                                        <li>{{ job.name }}: {{ job.explanation }}</li>
+                                    {% endif %}
+                                {% endfor %}
+                            </ul>
+                        {% endif %}
+
+                        {% if job_postings %}
+                            <h4 class="font-medium text-gray-800">Job Postings</h4>
+                            <ul class="list-disc pl-5 mb-3">
+                                {% for job in job_postings %}
+                                    <li><a href="{{ job.url }}" target="_blank" class="text-blue-600 hover:underline">{{ job.title }}</a></li>
+                                {% endfor %}
+                            </ul>
+                        {% endif %}
+
+                        {% if result.resume_feedback %}
+                            <h4 class="font-medium text-gray-800">Resume Feedback</h4>
+                            <ul class="list-disc pl-5 mb-3">
+                                {% for feedback in result.resume_feedback %}
+                                    <li>{{ feedback }}</li>
+                                {% endfor %}
+                            </ul>
+                        {% endif %}
+
+                        {% if result.ats_tips %}
+                            <h4 class="font-medium text-gray-800">ATS Improvement Tips</h4>
+                            <ul class="list-disc pl-5 mb-3">
+                                {% for tip in result.ats_tips %}
+                                    <li>{{ tip }}</li>
+                                {% endfor %}
+                            </ul>
+                        {% endif %}
+
+                        {% if result.courses %}
+                            <h4 class="font-medium text-gray-800">Recommended Courses</h4>
+                            <form method="post" action="/update_progress/{{ user_id }}" id="progressForm">
+                                <ul class="list-disc pl-5 mb-3">
+                                    {% for course in result.courses %}
+                                        <li>
+                                            <label>
+                                                <input type="checkbox" name="course" value="{{ course }}"
+                                                    {% if course in progress[user_id].completed_courses %}checked{% endif %}
+                                                    onchange="document.getElementById('progressForm').submit()">
+                                                {{ course }}
+                                            </label>
+                                        </li>
+                                    {% endfor %}
+                                </ul>
+                            </form>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Dream Role Pathway -->
+                {% if result.dream_pathway.skills or result.dream_pathway.courses %}
+                    <div class="mb-6">
+                        <button class="w-full text-left bg-blue-100 p-3 rounded-md flex justify-between items-center" onclick="toggleSection('dream')">
+                            <span class="font-medium">Dream Role Pathway ({{ request.form.dream_role }})</span>
+                            <span>▼</span>
+                        </button>
+                        <div id="dream" class="mt-2">
+                            <h4 class="font-medium text-gray-800">Skills to Learn</h4>
+                            <ul class="list-disc pl-5 mb-3">
+                                {% for skill in result.dream_pathway.skills %}
+                                    <li>{{ skill }}</li>
+                                {% endfor %}
+                            </ul>
+                            <h4 class="font-medium text-gray-800">Courses</h4>
+                            <ul class="list-disc pl-5 mb-3">
+                                {% for course in result.dream_pathway.courses %}
+                                    <li>{{ course }}</li>
+                                {% endfor %}
+                            </ul>
+                            {% if skill_gap %}
+                                <h4 class="font-medium text-gray-800">Skill Gap</h4>
+                                <canvas id="skillGapChart" class="w-full max-w-md"></canvas>
+                            {% endif %}
+                        </div>
+                    </div>
+                {% endif %}
+
+                <!-- Download Report -->
+                <a href="/download_report/{{ report_path }}" class="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 inline-block mt-4">
+                    Download PDF Report
+                </a>
+            </div>
+        {% endif %}
+    </div>
+
+    <!-- Feedback Modal -->
+    <div id="feedbackModal" class="modal" role="dialog" aria-labelledby="modalTitle">
+        <div class="modal-content">
+            <h3 id="modalTitle" class="text-lg font-medium">Resume Feedback</h3>
+            <p id="modalContent"></p>
+            <button onclick="document.getElementById('feedbackModal').style.display='none'" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700">
+                Close
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // Toggle collapsible sections
+        function toggleSection(id) {
+            const section = document.getElementById(id);
+            section.style.display = section.style.display === 'none' ? 'block' : 'none';
+        }
+
+        // Show feedback modal
+        function showFeedback(content) {
+            document.getElementById('modalContent').innerText = `Suggestion: ${content} (Consider adding more details or keywords.)`;
+            document.getElementById('feedbackModal').style.display = 'block';
+        }
+
+        // Form submission with spinner
+        document.getElementById('uploadForm').addEventListener('submit', function(e) {
+            const fileInput = document.getElementById('resume');
+            const submitBtn = document.getElementById('submitBtn');
+            const spinner = document.getElementById('spinner');
+            const allowedExtensions = ['.pdf', '.docx'];
+            const ext = fileInput.value.substring(fileInput.value.lastIndexOf('.')).toLowerCase();
+
+            if (!allowedExtensions.includes(ext)) {
+                e.preventDefault();
+                alert('Please upload a PDF or DOCX file.');
+                return;
+            }
+
+            submitBtn.disabled = true;
+            spinner.style.display = 'inline-block';
+        });
+
+        // Skill gap chart
+        {% if skill_gap %}
+            new Chart(document.getElementById('skillGapChart'), {
+                type: 'bar',
+                data: {
+                    labels: ['Current Skills', 'Required Skills'],
+                    datasets: [{
+                        label: 'Skills',
+                        data: [{{ skill_gap.current }}, {{ skill_gap.total }}],
+                        backgroundColor: ['#3498db', '#e74c3c'],
+                        borderColor: ['#2980b9', '#c0392b'],
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    scales: { y: { beginAtZero: true } },
+                    plugins: { legend: { display: false } }
+                }
+            });
+        {% endif %}
+    </script>
+</body>
+</html>

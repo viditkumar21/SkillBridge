@@ -1,0 +1,32 @@
+{
+    "Data Analyst": {
+      "required_skills": ["Python", "SQL", "Excel", "Tableau", "Pandas"],
+      "optional_skills": ["Power BI", "R", "statistics"],
+      "description": "Analyze data to provide actionable insights."
+    },
+    "Software Engineer": {
+      "required_skills": ["Python", "Java", "JavaScript", "Git", "React"],
+      "optional_skills": ["Docker", "AWS", "TypeScript"],
+      "description": "Develop and maintain software applications."
+    },
+    "Project Manager": {
+      "required_skills": ["project management", "communication", "leadership"],
+      "optional_skills": ["Agile", "Scrum", "PMP certification"],
+      "description": "Lead teams to deliver projects on time."
+    },
+    "Marketing Specialist": {
+      "required_skills": ["marketing", "communication", "SEO"],
+      "optional_skills": ["Google Analytics", "content creation"],
+      "description": "Plan and execute marketing campaigns."
+    },
+    "UX Designer": {
+      "required_skills": ["UX design", "Figma", "user research"],
+      "optional_skills": ["Adobe XD", "prototyping"],
+      "description": "Design user-friendly interfaces."
+    },
+    "Financial Analyst": {
+      "required_skills": ["finance", "Excel", "financial modeling"],
+      "optional_skills": ["CFA", "SQL"],
+      "description": "Analyze financial data for decision-making."
+    }
+  }
